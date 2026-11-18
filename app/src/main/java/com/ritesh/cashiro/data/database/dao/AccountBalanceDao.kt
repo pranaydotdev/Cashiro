@@ -106,11 +106,7 @@ abstract class AccountBalanceDao {
         // Fix for manually-created accounts: when the account was set up today (MANUAL entry),
         // backdated transactions have no prior entry. Fall back to the earliest MANUAL balance
         // so the calculation is based on the user's initial balance, not zero.
-        val previousForBalance = previous ?: run {
-            val earliest = getEarliestBalance(bankName, accountLast4)
-            if (earliest?.sourceType == SOURCE_MANUAL) earliest else null
-        }
-
+        val previousForBalance = previous
         val accountIsCreditCard = isCreditCard || (previousForBalance?.isCreditCard ?: false)
         val newBalance = explicitBalance ?: calculateTransactionBalance(
             currentBalance = previousForBalance?.balance ?: BigDecimal.ZERO,
@@ -175,12 +171,11 @@ abstract class AccountBalanceDao {
             // (e.g., today's expenses) are correctly updated to reflect the backdated change.
             // The MANUAL entry itself is updated to carry the accumulated delta.
             if (sourceType == SOURCE_MANUAL) {
-                if (runningBalance != row.balance) {
-                    updateAndInvalidate(row.id, runningBalance)
-                }
-                continue
-            }
-
+		    //Manual balance is a fixed anchor.
+		    //Never overwrite is during transcation recalc.
+		    runningBalance = row.balance
+		    continue
+	    } 
             // Bank-reported explicit balances (SMS) are authoritative anchors — stop here.
             val isExplicitBalance = row.transactionBalanceAfter != null ||
                     sourceType == SOURCE_TRANSACTION_SMS_BALANCE ||
